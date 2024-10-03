@@ -179,3 +179,142 @@ void loop() {
     display.DisplayTemp();  // Show current temperature
     delay(1000);  // 1-second delay (can be adjusted)
 }
+
+
+//Experimental Python Code..................................................................................................................................................................................
+
+import smbus2
+import RPi.GPIO as GPIO
+from time import sleep
+from datetime import datetime
+
+# RTC address and temperature register (for DS3231)
+RTC_ADDRESS = 0x68
+TEMP_REG = 0x11
+
+# Setup GPIO pins
+LATCH_PIN = 6
+CLOCK_PIN = 7
+DATA_PIN = 5
+
+# 7-segment display digit map (binary encoded)
+digit_map = [
+    0b0001,  # 0
+    0b0000,  # 1
+    0b1001,  # 2
+    0b1000,  # 3
+    0b0111,  # 4
+    0b0110,  # 5
+    0b0101,  # 6
+    0b0100,  # 7
+    0b0011,  # 8
+    0b0010   # 9
+]
+
+# Initialize I2C bus
+bus = smbus2.SMBus(1)
+
+class TimeTempDisplay:
+    def __init__(self):
+        # Setup GPIO
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(LATCH_PIN, GPIO.OUT)
+        GPIO.setup(CLOCK_PIN, GPIO.OUT)
+        GPIO.setup(DATA_PIN, GPIO.OUT)
+
+    def read_rtc(self):
+        # Read current time from RTC
+        now = datetime.now()  # Simulate time, use `bus` with I2C for actual RTC
+        second = now.second
+        minute = now.minute
+        hour = now.hour
+        day = now.day
+        month = now.month
+        year = now.year % 100
+
+        temperature = self.read_temperature()
+        return hour, minute, second, temperature, day, month, year
+
+    def read_temperature(self):
+        # Simulate reading temperature from RTC DS3231
+        temp_raw = bus.read_byte_data(RTC_ADDRESS, TEMP_REG)
+        return temp_raw  # Return temperature in degrees Celsius (from RTC)
+
+    def adjust_for_dst(self, hour, day, month):
+        # Adjust for daylight saving time
+        if month == 3 and day - (day % 7) >= 25 and hour == 2:
+            hour += 1
+        if month == 10 and day - (day % 7) >= 25 and hour == 3:
+            hour -= 1
+        return hour
+
+    def display_digit(self, value):
+        GPIO.output(LATCH_PIN, 0)
+        for i in range(8):
+            GPIO.output(CLOCK_PIN, 0)
+            GPIO.output(DATA_PIN, (value >> (7 - i)) & 1)
+            GPIO.output(CLOCK_PIN, 1)
+        GPIO.output(LATCH_PIN, 1)
+
+    def display_time(self, hour, minute, second):
+        hourdigit1 = digit_map[hour // 10]
+        hourdigit2 = digit_map[hour % 10]
+        mindigit1 = digit_map[minute // 10]
+        mindigit2 = digit_map[minute % 10]
+        secdigit1 = digit_map[second // 10]
+        secdigit2 = digit_map[second % 10]
+
+        self.display_digit((hourdigit1 << 4) | hourdigit2)
+        self.display_digit((mindigit1 << 4) | mindigit2)
+        self.display_digit((secdigit1 << 4) | secdigit2)
+        sleep(1)
+
+    def display_temp(self, temperature):
+        tempdigit1 = digit_map[temperature // 10]
+        tempdigit2 = digit_map[temperature % 10]
+
+        self.display_digit((tempdigit1 << 4) | tempdigit2)
+        self.display_digit(0b10101010)  # ° symbol
+        self.display_digit(0b10101010)  # ° symbol
+        sleep(0.6)
+
+        # Display °C
+        self.display_digit((0b1010 << 4) | tempdigit1)
+        self.display_digit((tempdigit2 << 4) | 0b1010)
+        self.display_digit(0b10101010)  # ° symbol
+        sleep(0.6)
+
+    def display_date(self, day, month, year):
+        daydigit1 = digit_map[day // 10]
+        daydigit2 = digit_map[day % 10]
+        monthdigit1 = digit_map[month // 10]
+        monthdigit2 = digit_map[month % 10]
+        yeardigit1 = digit_map[year // 10]
+        yeardigit2 = digit_map[year % 10]
+
+        self.display_digit((daydigit1 << 4) | daydigit2)
+        self.display_digit((monthdigit1 << 4) | monthdigit2)
+        self.display_digit((yeardigit1 << 4) | yeardigit2)
+        sleep(10)
+
+# Main loop
+def main():
+    display = TimeTempDisplay()
+
+    try:
+        while True:
+            hour, minute, second, temperature, day, month, year = display.read_rtc()
+
+            # Adjust for daylight saving time
+            hour = display.adjust_for_dst(hour, day, month)
+
+            display.display_time(hour, minute, second)  # Display time
+            display.display_date(day, month, year)      # Display date
+            display.display_temp(temperature)           # Display temperature
+            sleep(1)
+
+    except KeyboardInterrupt:
+        GPIO.cleanup()  # Clean up GPIO on Ctrl+C
+
+if __name__ == "__main__":
+    main()
