@@ -1,0 +1,52 @@
+Here is some theory from my engeeners project, hope it will help someone,
+
+
+
+The main component of the designed clock is the Arduino microcontroller. Arduino is an extremely popular microcontroller platform among electronics enthusiasts. Its advantages are ease of use and open-source software,
+making it an excellent choice for anyone looking to undertake their own electronic projects. The platform allows various electronic elements to be connected to its pins and controlled, 
+such as turning lights or motors on and off or reading values from light and temperature sensors. This is why Arduino is often referred to as physical computing. 
+The board is equipped with an advanced microcontroller that looks like an integrated circuit, digital and analog connectors, as well as communication ports that enable connecting various sensors and devices to the board. 
+Arduino is designed for both beginners and advanced users, thanks to its simple C/C++ language and a wide range of pre-made libraries that further simplify programming.
+It is widely used in various fields, such as automation and robotics. Its availability and simplicity make it an ideal tool for those capable of creating innovative projects.
+
+
+Another essential element for building the clock is the voltage converter. The flyback converter is a type of DC-DC converter that converts direct current voltage from a lower to a higher level with minimal power loss, 
+resulting in high energy efficiency. To boost the input voltage, the converter works by cyclically storing energy in the transformer core. A MOSFET transistor and a diode, which are switched on and off, must be used. 
+When the transistor is activated, it allows current to flow to the transformer to increase voltage. In the off-phase, the current flows to the load through the diode, which prevents backflow. 
+Such power supplies are commonly used today in devices like electronic power converters and computer power supplies.
+
+
+The primary display elements are Nixie tubes, specially designed to display digits, letters, or other symbols. The tube is filled with neon and argon at low pressure, allowing current to pass and emit a characteristic light color.
+They have a common anode, which is the main electrode emitting light, and each digit has its own cathode (Fig. 9). Individual characters are enclosed in a glass casing. When a voltage of 150V-200V is applied, 
+the gas around the cathode ignites. The current required to ignite and light the tube ranges from 1 to 25 mA and must be limited by a resistor before the tube to protect it from excessive current draw. 
+The lifespan of such tubes ranges from 20,000 to 200,000 hours. To control the individual numbers, a microcontroller with integrated circuits and a shift register is needed.
+
+
+For time control and proper monitoring, a Real-Time Clock (RTC) module was used, commonly found in devices like phones, laptops, and computers. It is used to track the current date and time in real-time.
+Besides precise time measurement, this module also integrates a thermometer that measures ambient temperature with an accuracy of ±0.25°C. The temperature sensor in the DS3231 uses an NTC thermistor that changes its resistance based on the surrounding temperature.
+The thermistor's resistance is read by the DS3231's measurement system and converted into a specific temperature value. Temperature data is available via the I2C bus, similar to time information from the RTC clock. 
+This system consists of a real-time clock, communication interface, backup battery to maintain memory in the event of power loss, internal memory, and a time interrupt generator. With its interrupt and alarm features, 
+the RTC module allows specific tasks to be performed at a designated time, increasing its usability. Additionally, advances in RTC systems have added functions like automatic time calibration after startup and the ability to handle buses such as I2C and UART,
+enabling direct connection to the Arduino board without additional converters.
+
+
+Resistors are essential for proper operation. They are the basic elements in electronic circuits, controlling the flow of current in electrical circuits. Current and voltage are calculated using Ohm's law,
+where excess current is converted into heat by the resistor. Resistors come in various forms and resistance values. The most common ones are fixed resistors with a color code indicating their resistance value.
+They are widely used in electronics in systems like power supplies, audio circuits, screen brightness control, circuit protection, current, and voltage stabilization. In electronic devices, they are soldered onto PCBs.
+It is important to note that resistors generate power losses in the form of heat.
+
+
+Another electronic component necessary for proper operation is the integrated circuit (IC). These elements contain numerous components like transistors, diodes, and capacitors.
+They allow for miniaturization and enable complex circuits to be placed on a single semiconductor element. Depending on complexity, their size increases from small, gate-based circuits to more advanced microcontrollers or microprocessors.
+These circuits are widely used in automation, robotics, computing, and audio devices, allowing the creation of small yet complex devices like smartphones, computers, or audio amplifiers. 
+They are mounted on PCBs in special enclosures like DIP on project ware used Integrated circuit 74HC595
+
+
+Capacitors, another essential component, are used for capturing electrical charge. They consist of two plates separated by a dielectric, a material that does not conduct electricity. When charging,
+the capacitor divides its charge between two sides, one positive and one negative. Its capacity is measured in farads (F), determining how much charge it can hold. Capacitors are widely used in electronics for applications like high-pass and low-pass filters,
+voltage stabilizers, and power supplies for smoothing voltage in memory systems. Their role is to store energy or temporarily support a system with memory.
+
+
+In order to connect all components, a printed circuit board (PCB) is needed. This board places the electronic components on an insulating material with copper traces. PCBs play an essential role in electronic designs,
+enabling the placement of a large number of components in a small space while providing mechanical support. They are designed using specialized software like EazyEDA or Eagle, which allow for defining the placement of components,
+trace routes, and the size and thickness of the board.
