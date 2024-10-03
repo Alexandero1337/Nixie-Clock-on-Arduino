@@ -1,0 +1,181 @@
+//Code for Arduino
+
+#include <Wire.h>
+#include <RTClib.h>
+
+// Real Time Clock object
+RTC_DS3231 rtc;
+
+class TimeTempDisplay {
+public:
+    // Time variables
+    int hour;      
+    int minute;    
+    int second;    
+    
+    // Temperature and date variables
+    int temperature;  
+    int day;          
+    int month;        
+    int year;         
+
+    // Pin configuration for display
+    const int latchPin = 6;
+    const int clockPin = 7;
+    const int dataPin = 5;
+
+    // Mapping of digits to 7-segment display representation
+    const byte digitMap[10] = {
+      B0001, // 0
+      B0000, // 1
+      B1001, // 2
+      B1000, // 3
+      B0111, // 4
+      B0110, // 5
+      B0101, // 6
+      B0100, // 7
+      B0011, // 8
+      B0010  // 9
+    };
+
+    // Constructor
+    TimeTempDisplay() {
+        pinMode(latchPin, OUTPUT);  // Set the latch pin as output
+        pinMode(clockPin, OUTPUT);  // Set the clock pin as output
+        pinMode(dataPin, OUTPUT);   // Set the data pin as output
+
+        // Initialize RTC, check if found
+        if (!rtc.begin()) {
+            Serial.println("Couldn't find RTC");
+            while (1);
+        }
+
+        // If RTC lost power, set the time to compile time
+        if (rtc.lostPower()) {
+            Serial.println("RTC lost power, let's set the time!");
+            rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+        }
+    }
+
+    // Method to get current time and temperature
+    void GetData() {
+        DateTime now = rtc.now();
+        second = now.second();
+        minute = now.minute();
+        hour = now.hour();
+        temperature = rtc.getTemperature();
+        day = now.day();
+        month = now.month();
+        year = now.year() % 100;
+
+        adjustForDST();  // Adjust for Daylight Saving Time
+    }
+
+    // Adjust for Daylight Saving Time
+    void adjustForDST() {
+        // Transition to summer time: last Sunday of March, 2:00 -> 3:00
+        if (month == 3 && day - (day % 7) >= 25 && hour == 2) {
+            hour++;
+        }
+        // Transition to winter time: last Sunday of October, 3:00 -> 2:00
+        if (month == 10 && day - (day % 7) >= 25 && hour == 3) {
+            hour--;
+        }
+    }
+
+    // Increment time by 1 second
+    void CountTime() {
+        second++;
+        if (second > 59) {
+            minute++;
+            second = 0;
+        }
+        if (minute > 59) {
+            hour++;
+            minute = 0;
+        }
+        if (hour > 23) {
+            hour = 0;
+        }
+    }
+
+    // Method to display time on the 7-segment display
+    void DisplayTime() {
+        int hourdigit1 = digitMap[hour / 10];
+        int hourdigit2 = digitMap[hour % 10];
+        int mindigit1 = digitMap[minute / 10];
+        int mindigit2 = digitMap[minute % 10];
+        int secdigit1 = digitMap[second / 10];
+        int secdigit2 = digitMap[second % 10];
+
+        byte hourdigit = (hourdigit1 << 4) | hourdigit2;
+        byte mindigit = (mindigit1 << 4) | mindigit2;
+        byte secdigit = (secdigit1 << 4) | secdigit2;
+
+        setDigit(hourdigit);  // Set hour digits
+        setDigit(mindigit);   // Set minute digits
+        setDigit(secdigit);   // Set second digits
+        delay(1000);  // 1-second delay
+    }
+
+    // Method to display temperature on the 7-segment display
+    void DisplayTemp() {
+        int tempdigit1 = digitMap[temperature / 10];
+        int tempdigit2 = digitMap[temperature % 10];
+
+        byte tempdigit = (tempdigit1 << 4) | tempdigit2;
+
+        setDigit(tempdigit);
+        setDigit(B10101010);  // Display ° symbol
+        setDigit(B10101010);  // Display ° symbol
+        delay(600);
+        setDigit((B1010 << 4) | tempdigit1); // °C display
+        setDigit((tempdigit2 << 4) | B1010); // °C display
+        setDigit(B10101010);  // Display ° symbol
+        delay(600);
+    }
+
+    // Method to display date on the 7-segment display
+    void DisplayData() {
+        int daydigit1 = digitMap[day / 10];
+        int daydigit2 = digitMap[day % 10];
+        int monthdigit1 = digitMap[month / 10];
+        int monthdigit2 = digitMap[month % 10];
+        int yeardigit1 = digitMap[year / 10];
+        int yeardigit2 = digitMap[year % 10];
+
+        byte daydigit = (daydigit1 << 4) | daydigit2;
+        byte monthdigit = (monthdigit1 << 4) | monthdigit2;
+        byte yeardigit = (yeardigit1 << 4) | yeardigit2;
+
+        setDigit(daydigit);   // Set day digits
+        setDigit(monthdigit); // Set month digits
+        setDigit(yeardigit);  // Set year digits
+        delay(10000);  // 10-second delay
+    }
+
+private:
+    // Method to set a digit on the display
+    void setDigit(byte value) {
+        digitalWrite(latchPin, LOW);  // Prepare to send data
+        shiftOut(dataPin, clockPin, MSBFIRST, value);  // Send data to shift register
+        digitalWrite(latchPin, HIGH); // Latch to output
+    }
+};
+
+// Instantiate the display object
+TimeTempDisplay display;
+
+void setup() {
+    Serial.begin(57600);  // Initialize serial communication
+    display.GetData();    // Get initial data (time and temperature)
+}
+
+void loop() {
+    display.GetData();    // Refresh the data
+    display.CountTime();  // Increment the time by 1 second
+    display.DisplayTime();  // Show current time
+    display.DisplayData();  // Show current date
+    display.DisplayTemp();  // Show current temperature
+    delay(1000);  // 1-second delay (can be adjusted)
+}
