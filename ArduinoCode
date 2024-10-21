@@ -7,160 +7,229 @@
 
 RTC_DS3231 rtc;
 
-class TimeTempDisplay {
-public:
-    int godzina;
-    int minuta;
-    int sekunda;
-    int temperatura;
-    int dzien;
-    int miesiac;
-    int rok;
+int godzina;
+int minuta;
+int sekunda;
+int temperatura;
+int dzien;
+int miesiac;
+int rok;
+int x;
 
-    const int latchPin = 6;
-    const int clockPin = 7;
-    const int dataPin = 5;
+const int latchPin = 6;
+const int clockPin = 7;
+const int dataPin = 5;
 
-    const byte digitMap[10] = {
-      B0001, // 0
-      B0000, // 1
-      B1001, // 2
-      B1000, // 3
-      B0111, // 4
-      B0110, // 5
-      B0101, // 6
-      B0100, // 7
-      B0011, // 8
-      B0010  // 9
-    };
+void GetData();
+void DisplayTime();
+void setDigit(int displayNumber, byte value);
+void CountTime();
+void DisplayTemp();
+void DisplayData();
+void nic();
 
-    TimeTempDisplay() {
-        pinMode(latchPin, OUTPUT);
-        pinMode(clockPin, OUTPUT);
-        pinMode(dataPin, OUTPUT);
-
-        if (!rtc.begin()) {
-            Serial.println("Couldn't find RTC");
-            while (1);
-        }
-
-        if (rtc.lostPower()) {
-            Serial.println("RTC lost power, let's set the time!");
-            rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-        }
-    }
-
-    void GetData() {
-        DateTime now = rtc.now();
-        sekunda = now.second();
-        minuta = now.minute();
-        godzina = now.hour();
-        temperatura = rtc.getTemperature();
-        dzien = now.day();
-        miesiac = now.month();
-        rok = now.year() % 100;
-
-        adjustForDST();
-    }
-
-    void adjustForDST() {
-        // Przejscie na czas letni: ostatnia niedziela marca, 2:00 -> 3:00
-        if (miesiac == 3 && dzien - (dzien % 7) >= 25 && godzina == 2) {
-            godzina++;
-        }
-        // Przejscie na czas zimowy: ostatnia niedziela pazdziernika, 3:00 -> 2:00
-        if (miesiac == 10 && dzien - (dzien % 7) >= 25 && godzina == 3) {
-            godzina--;
-        }
-    }
-
-    void CountTime() {
-        sekunda++;
-        if (sekunda > 59) {
-            minuta++;
-            sekunda = 0;
-        }
-        if (minuta > 59) {
-            godzina++;
-            minuta = 0;
-        }
-        if (godzina > 23) {
-            godzina = 0;
-        }
-    }
-
-    void DisplayTime() {
-        int hourdigit1 = digitMap[godzina / 10];
-        int hourdigit2 = digitMap[godzina % 10];
-        int mindigit1 = digitMap[minuta / 10];
-        int mindigit2 = digitMap[minuta % 10];
-        int secdigit1 = digitMap[sekunda / 10];
-        int secdigit2 = digitMap[sekunda % 10];
-
-        byte hourdigit = (hourdigit1 << 4) | hourdigit2;
-        byte mindigit = (mindigit1 << 4) | mindigit2;
-        byte secdigit = (secdigit1 << 4) | secdigit2;
-
-        setDigit(hourdigit);
-        setDigit(mindigit);
-        setDigit(secdigit);
-        delay(1000);
-    }
-
-    void DisplayTemp() {
-        int tempdigit1 = digitMap[temperatura / 10];
-        int tempdigit2 = digitMap[temperatura % 10];
-
-        byte tempdigit = (tempdigit1 << 4) | tempdigit2;
-
-        setDigit(tempdigit);
-        setDigit(B10101010);
-        setDigit(B10101010);
-        delay(600);
-        setDigit((B1010 << 4) | tempdigit1);
-        setDigit((tempdigit2 << 4) | B1010);
-        setDigit(B10101010);
-        delay(600);
-    }
-
-    void DisplayData() {
-        int daydigit1 = digitMap[dzien / 10];
-        int daydigit2 = digitMap[dzien % 10];
-        int monthdigit1 = digitMap[miesiac / 10];
-        int monthdigit2 = digitMap[miesiac % 10];
-        int yeardigit1 = digitMap[rok / 10];
-        int yeardigit2 = digitMap[rok % 10];
-
-        byte daydigit = (daydigit1 << 4) | daydigit2;
-        byte monthdigit = (monthdigit1 << 4) | monthdigit2;
-        byte yeardigit = (yeardigit1 << 4) | yeardigit2;
-
-        setDigit(daydigit);
-        setDigit(monthdigit);
-        setDigit(yeardigit);
-        delay(10000);
-    }
-
-private:
-    void setDigit(byte value) {
-        digitalWrite(latchPin, LOW);
-        shiftOut(dataPin, clockPin, MSBFIRST, value);
-        digitalWrite(latchPin, HIGH);
-    }
+// Tablica mapująca cyfry na odpowiadające im wartości dla wyświetlacza
+const byte digitMap[] = {
+  B0001, // 0
+  B0000, // 1
+  B1001, // 2
+  B1000, // 3
+  B0111, // 4
+  B0110, // 5
+  B0101, // 6
+  B0100, // 7
+  B0011, // 8
+  B0010,  // 9
+  B1010  // puste
 };
 
-TimeTempDisplay display;
+void setDigit(byte value) {
+  digitalWrite(latchPin, LOW);
+  shiftOut(dataPin, clockPin, MSBFIRST, value);
+  digitalWrite(latchPin, HIGH);
+}
 
 void setup() {
-    Serial.begin(57600);
-    display.GetData();
+  Serial.begin(57600);
+
+  pinMode(latchPin, OUTPUT);
+  pinMode(clockPin, OUTPUT);
+  pinMode(dataPin, OUTPUT);
+
+  if (!rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, let's set the time!");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+
+  GetData();
+  x = 60 - sekunda;
+  for(int i=0;i<x;i++) {
+    CountTime();
+    DisplayTime();
+    sekunda++;
+  }
 }
 
 void loop() {
-    display.GetData();
-    display.CountTime();
-    display.DisplayTime();
-    display.DisplayData();
-    display.DisplayTemp();
-    delay(1000);  // Dla przyk?adu opoznienie, mozna dostosowac?
+  GetData();
+  CountTime();
+  sekunda+=x;
+  x = 0;
+  DisplayData();
+  sekunda+=10;
+  GetData();
+  CountTime();
+  for(int i=0;i<50;i++) {
+    CountTime();
+    DisplayTime();
+    sekunda++;
+  }
+  matrix();
+  GetData();
+  CountTime();
+  for(int i=0;i<60;i++) {
+    CountTime();
+    DisplayTime();
+    sekunda++;
+  }
+  for(int i=0;i<3;i++) {
+    DisplayTemp();
+  }
+  sekunda+=10;
+  GetData();
+  CountTime();
+  for(int i=0;i<45;i++) {
+    CountTime();
+    DisplayTime();
+    sekunda++;
+  }
+  nic();
+  sekunda+=10;
+}
+
+void matrix() {
+  for(int i=0;i<20;i++) {
+    for(int j=0;j<3;j++) {
+      int x = random(0,9);
+      int y = random(0,9);
+      x = digitMap[x];
+      byte mat = (x << 4) | y;
+      setDigit(mat);
+    }
+    delay(250);
+  }
+  sekunda+=5;
+}
+
+void GetData() {
+  DateTime now = rtc.now();
+  sekunda = now.second();
+  minuta = now.minute();
+  godzina = now.hour();
+  temperatura = rtc.getTemperature()-2;
+  dzien = now.day();
+  miesiac = now.month();
+  rok = now.year() % 100;
+}
+
+void CountTime() {
+  if (sekunda > 59) {
+    minuta++;
+    sekunda = sekunda % 60;
+  }
+  if (minuta > 59) {
+    godzina++;
+    minuta = minuta % 60;
+  }
+  if (godzina > 23) {
+    godzina = godzina % 24;
+  }
+  if (minuta < 0) {
+    godzina--;
+    minuta = 60 - minuta;
+  }
+  if (godzina < 0) {
+    godzina = 24 - godzina;
+  }
+  if (godzina == 23 && minuta == 59 && sekunda == 59) {
+    delay(28801000);
+    GetData();
+    CountTime();
+  }
+}
+
+void DisplayTime() {
+  int hourdigit1 = digitMap[godzina / 10];//dzieli zczytany czas na osobne cyfry
+  int hourdigit2 = digitMap[godzina % 10];
+  int mindigit1 = digitMap[minuta / 10];
+  int mindigit2 = digitMap[minuta % 10];
+  int secdigit1 = digitMap[sekunda / 10];
+  int secdigit2 = digitMap[sekunda % 10];
+
+  byte hourdigit = (hourdigit1 << 4) | hourdigit2;//zamienia na bity
+  byte mindigit = (mindigit1 << 4) | mindigit2;
+  byte secdigit = (secdigit1 << 4) | secdigit2;
+
+  setDigit(hourdigit);//wyświetla
+  setDigit(mindigit);
+  setDigit(secdigit);
+  delay(1000);
+}
+
+void DisplayTemp() {
+  int tempdigit1 = digitMap[temperatura / 10];//dzieli zczytaną temperaturę na osobne cyfry
+  int tempdigit2 = digitMap[temperatura % 10];
+
+  byte tempdigit = (tempdigit1 << 4) | tempdigit2;
+  
+  setDigit(tempdigit);
+  setDigit(B10101010);
+  setDigit(B10101010);
+  delay(600);
+  setDigit((B1010 << 4) | tempdigit1);
+  setDigit((tempdigit2 << 4) | B1010);
+  setDigit(B10101010);
+  delay(600);
+  setDigit(B10101010);
+  setDigit(tempdigit);
+  setDigit(B10101010);
+  delay(600);
+  setDigit(B10101010);
+  setDigit((B1010 << 4) | tempdigit1);
+  setDigit((tempdigit2 << 4) | B1010);
+  delay(600);
+  setDigit(B10101010);
+  setDigit(B10101010);
+  setDigit(tempdigit);
+  delay(600);
+}
+
+void DisplayData() {
+  int daydigit1 = digitMap[dzien / 10];//dzieli zczytany czas na osobne cyfry
+  int daydigit2 = digitMap[dzien % 10];
+  int monthdigit1 = digitMap[miesiac / 10];
+  int monthdigit2 = digitMap[miesiac % 10];
+  int yeardigit1 = digitMap[rok / 10];
+  int yeardigit2 = digitMap[rok % 10];
+
+  byte daydigit = (daydigit1 << 4) | daydigit2;//zamienia na bity
+  byte monthdigit = (monthdigit1 << 4) | monthdigit2;
+  byte yeardigit = (yeardigit1 << 4) | yeardigit2;
+
+  setDigit(daydigit);//wyświetla
+  setDigit(monthdigit);
+  setDigit(yeardigit);
+  delay(10000);
+}
+
+void nic() {
+  setDigit(B10101010);
+  setDigit(B10101010);
+  setDigit(B10101010);
+  delay(10000);
 }
